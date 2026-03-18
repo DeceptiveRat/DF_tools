@@ -81,7 +81,7 @@ while data_array != "":
 		if pos == -1:
 			break
 		# print offset
-		print("offset: %d" %(offset+pos))
+		print("offset: %d(0x%x)" %(offset+pos, offset+pos))
 		# search starts from next byte
 		pos+=1
 	

@@ -230,7 +230,7 @@ def readNonResAttrHeader(data_buffer) -> NonResAttrHeader:
 	runlist_end_VCN = int.from_bytes(data_buffer.read(8), "little")
 	runlist_offset = int.from_bytes(data_buffer.read(2), "little")
 	compression_unit_size = int.from_bytes(data_buffer.read(2), "little")
-	padding = int.from_bytes(data_buffer.read(4), "little")
+	padding = int.from_bytes(data_buffer.read(4))
 	attr_content_alloc_size = int.from_bytes(data_buffer.read(8), "little")
 	attr_content_actual_size = int.from_bytes(data_buffer.read(8), "little")
 	attr_content_init_size = int.from_bytes(data_buffer.read(8), "little")
@@ -333,8 +333,10 @@ def readAttr(data_buffer, current_offset):
 def printResAttr(res_attr_header, attr_content):
 	print("Resident Attribute", "="*100)
 	printResAttrHeader(res_attr_header)
+
 	print("Content:")
 	# print content
+	print(attr_content)
 	print("="*100, "\n\n\n")
 
 def printNonResAttr(non_res_attr_header, attr_runlist):
