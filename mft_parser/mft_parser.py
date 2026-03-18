@@ -93,6 +93,7 @@ def readEntryHeader(data_buffer) -> EntryHeader:
 		padding, entry_num), 48
 
 def printEntryHeader(entry_header):
+	print("Entry Header", "="*100)
 	if entry_header.signature != b'FILE':
 		print("Signature not FILE", file=sys.stderr)
 	else:
@@ -111,6 +112,7 @@ def printEntryHeader(entry_header):
 	print("MFT entry allocated size: %d" %(entry_header.entry_alloc_size))
 	print("file reference to base record: %d" %(entry_header.base_record_file_ref))
 	print("next attribute id: %d" %(entry_header.next_attr_id))
+	print("="*100, "\n\n\n")
 
 def readFixupData(data_buffer, entry_header, offset) -> FixupData:
 	padding = 0
@@ -137,10 +139,12 @@ def readFixupData(data_buffer, entry_header, offset) -> FixupData:
 	return FixupData(padding, padding_exist, fixup_value, original_value_array), read_bytes
 
 def printFixupData(fixup_data):
+	print("Fixup data", "="*100)
 	print("fixup value: 0x%s" %(fixup_data.fixup_value.hex()))
 	print("original value list: ")
 	for _ in range(len(fixup_data.original_value_array)):
 		print("\t- 0x%s" %(fixup_data.original_value_array[_].hex()))
+	print("="*100, "\n\n\n")
 
 def readAttrHeader(data_buffer) -> AttrHeader:
 	attr_type_id = int.from_bytes(data_buffer.read(4), "little")
@@ -256,6 +260,9 @@ def readRunlist(data_buffer):
 		run_length = int.from_bytes(data_buffer.read(run_length_length), "little")
 		read_bytes += run_length_length
 		run_offset = int.from_bytes(data_buffer.read(run_offset_length), "little")
+		# offset is negative
+		if not (run_offset & 0x80):
+			run_offset -= 0x10000
 		read_bytes += run_offset_length
 		length_byte = int.from_bytes(data_buffer.read(1))
 		read_bytes += 1
@@ -324,16 +331,24 @@ def readAttr(data_buffer, current_offset):
 	return res_attr_header, nonres_attr_header, attr_content, attr_runlist, total_read_bytes
 
 def printResAttr(res_attr_header, attr_content):
+	print("Resident Attribute", "="*100)
 	printResAttrHeader(res_attr_header)
+	print("Content:")
 	# print content
+	print("="*100, "\n\n\n")
 
 def printNonResAttr(non_res_attr_header, attr_runlist):
+	print("Non-resident Attribute", "="*100)
 	printNonResAttrHeader(non_res_attr_header)
 	cumulated_offset = 0
 	for _ in range(len(attr_runlist)):
-		print("Runlist[%d]:\tRun Length: %d\t\t\tRun Offset: %d(%d from start of FS)" %(_, attr_runlist[_].run_length, attr_runlist[_].run_offset, cumulated_offset))
-		cumulated_offset += attr_runlist[_].run_length
+		cumulated_offset += attr_runlist[_].run_offset
+		print("\tRunlist[%d]:\tRun Length: %d\t\t\tRun Offset: %d(%d from start of FS)" %(_, attr_runlist[_].run_length, attr_runlist[_].run_offset, cumulated_offset))
+
+	print("Content:")
 	# print content
+
+	print("="*100, "\n\n\n")
 	
 def main():
 	try:
