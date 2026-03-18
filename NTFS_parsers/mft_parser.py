@@ -22,13 +22,11 @@ class EntryHeader:
 	entry_alloc_size: int
 	base_record_file_ref: int
 	next_attr_id: int
-	padding: int
+	padding: bytes
 	entry_num: int
 
 @dataclass 
 class FixupData:
-	padding: bytes
-	padding_exist: int
 	fixup_value: int
 	original_value_array: list[int]
 
@@ -55,7 +53,7 @@ class NonResAttrHeader:
 	runlist_end_VCN: int
 	runlist_offset: int
 	compression_unit_size: int
-	padding: int
+	padding: bytes
 	attr_content_alloc_size: int
 	attr_content_actual_size: int
 	attr_content_init_size: int
@@ -71,94 +69,95 @@ def usage():
 	print("usage:", sys.argv[0])
 	print("options:")
 	print("-h: display this help screen")
-	print("-f <file>: file to parse. File must contain raw bytes for mft entry. If this is not provided, stdin will be used")
+	print("-f <file>: file to parse. File must contain raw bytes for mft entry. \
+		If this is not provided, stdin will be used")
 
-def readEntryHeader(data_buffer) -> EntryHeader:
-	signature = data_buffer.read(4)
-	fixup_array_offset = int.from_bytes(data_buffer.read(2), "little")
-	fixup_entry_count = int.from_bytes(data_buffer.read(2), "little")
-	logfile_seq_num = int.from_bytes(data_buffer.read(8), "little")
-	seq_value = int.from_bytes(data_buffer.read(2), "little")
-	link_count = int.from_bytes(data_buffer.read(2), "little")
-	attr_offset = int.from_bytes(data_buffer.read(2), "little")
-	flags = int.from_bytes(data_buffer.read(2), "little")
-	entry_used_size = int.from_bytes(data_buffer.read(4), "little")
-	entry_alloc_size = int.from_bytes(data_buffer.read(4), "little")
-	base_record_file_ref = int.from_bytes(data_buffer.read(8), "little")
-	next_attr_id = int.from_bytes(data_buffer.read(2), "little")
-	padding = data_buffer.read(2)
-	entry_num = int.from_bytes(data_buffer.read(4), "little")
-	return EntryHeader(signature, fixup_array_offset, fixup_entry_count, logfile_seq_num, seq_value, \
-		link_count, attr_offset, flags, entry_used_size, entry_alloc_size, base_record_file_ref, next_attr_id, \
-		padding, entry_num), 48
+def prettyPrint(field, value, data_type):
+	if data_type == "int":
+		print("%-20s: %d" %(field, value))
+	elif data_type == "hex":
+		print("%-20s: 0x%x" %(field, value))
+	elif data_type == "bytes":
+		print("%-20s:\n" %(field))
+		print(value)
+	elif data_type == "string":
+		print("%-20s: %s" %(field, value))
+
+def readEntryHeader(byte_array) -> EntryHeader:
+	signature = byte_array[0:4]
+	fixup_array_offset = int.from_bytes(byte_array[4:6], "little")
+	fixup_entry_count = int.from_bytes(byte_array[6:8], "little")
+	logfile_seq_num = int.from_bytes(byte_array[8:16], "little")
+	seq_value = int.from_bytes(byte_array[16:18], "little")
+	link_count = int.from_bytes(byte_array[18:20], "little")
+	attr_offset = int.from_bytes(byte_array[20:22], "little")
+	flags = int.from_bytes(byte_array[22:24], "little")
+	entry_used_size = int.from_bytes(byte_array[24:28], "little")
+	entry_alloc_size = int.from_bytes(byte_array[28:32], "little")
+	base_record_file_ref = int.from_bytes(byte_array[32:40], "little")
+	next_attr_id = int.from_bytes(byte_array[40:42], "little")
+	padding = byte_array[42:44]
+	entry_num = int.from_bytes(byte_array[44:48], "little")
+	return EntryHeader(signature, fixup_array_offset, fixup_entry_count, \
+		logfile_seq_num, seq_value, link_count, attr_offset, flags, \
+		entry_used_size, entry_alloc_size, base_record_file_ref, next_attr_id, \
+		padding, entry_num)
 
 def printEntryHeader(entry_header):
-	print("Entry Header", "="*100)
+	print("Entry Header", "="*15)
 	if entry_header.signature != b'FILE':
 		print("Signature not FILE", file=sys.stderr)
 	else:
 		print("Signature: FILE")
-	print("offset to fixup array: %d" %(entry_header.fixup_array_offset))
-	print("fixup array entry count: %d" %(entry_header.fixup_entry_count))
-	print("$LogFile sequence number: %d" %(entry_header.logfile_seq_num))
-	print("sequence value: %d" %(entry_header.seq_value))
-	print("link count: %d" %(entry_header.link_count))
-	print("attribute offset: %d" %(entry_header.attr_offset))
+	prettyPrint("fixup array offset", entry_header.fixup_array_offset, "int")
+	prettyPrint("fixup entry count", entry_header.fixup_entry_count, "int")
+	prettyPrint("$LogFile seq num", entry_header.logfile_seq_num, "int")
+	prettyPrint("sequence value", entry_header.seq_value, "int")
+	prettyPrint("link count", entry_header.link_count, "int")
+	prettyPrint("attribute offset", entry_header.attr_offset, "int")
 	if entry_header.flags & 0x01:
 		print("flags: in use flag set")
 	if entry_header.flags & 0x02:
 		print("flags: directory flag set")
-	print("MFT entry used size: %d" %(entry_header.entry_used_size))
-	print("MFT entry allocated size: %d" %(entry_header.entry_alloc_size))
-	print("file reference to base record: %d" %(entry_header.base_record_file_ref))
-	print("next attribute id: %d" %(entry_header.next_attr_id))
-	print("="*100, "\n\n\n")
+	prettyPrint("MFT entry used size", entry_header.entry_used_size, "int")
+	prettyPrint("MFT entry allocated size", entry_header.entry_alloc_size, "int")
+	prettyPrint("file reference to base record", entry_header.base_record_file_ref \
+		, "int")
+	prettyPrint("next attribute id", entry_header.next_attr_id, "int")
+	print("\n\n")
 
-def readFixupData(data_buffer, entry_header, offset) -> FixupData:
-	padding = 0
-	padding_exist = 0
-	read_bytes = 0
-	if offset < entry_header.fixup_array_offset:
-		print("Warning: bytes before fixup value detected", file=sys.stderr)
-		padding_exist = 1
-		read_bytes = entry_header.fixup_array_offset - offset
-		padding = data_buffer.read(read_bytes)
-		print(padding.hex(), file=sys.stderr)
-	elif offset > entry_header.fixup_array_offset:
-		print("Warning: fixup array offset smaller than header size", file=sys.stderr)
-		print("Terminating...", file=sys.stderr)
-		sys.exit(-1)
-
-	fixup_value = data_buffer.read(2)
-	read_bytes += 2
+def readFixupData(byte_array) -> FixupData:
+	offset = 0
+	fixup_value = byte_array[0:2]
+	offset = 2
 	original_value_array = []
-	for _ in range(entry_header.fixup_entry_count):
-		original_value_array.append(data_buffer.read(2))
-		read_bytes += 2
+	while offset != len(byte_array):
+		original_value_array.append(byte_array[offset:offset+2])
+		offset+=2
 	
-	return FixupData(padding, padding_exist, fixup_value, original_value_array), read_bytes
+	return FixupData(fixup_value, original_value_array)
 
 def printFixupData(fixup_data):
-	print("Fixup data", "="*100)
-	print("fixup value: 0x%s" %(fixup_data.fixup_value.hex()))
+	print("Fixup data", "="*15)
+	prettyPrint("fixup value:", int.from_bytes(fixup_data.fixup_value), "hex")
 	print("original value list: ")
 	for _ in range(len(fixup_data.original_value_array)):
 		print("\t- 0x%s" %(fixup_data.original_value_array[_].hex()))
-	print("="*100, "\n\n\n")
+	print("\n\n")
 
-def readAttrHeader(data_buffer) -> AttrHeader:
-	attr_type_id = int.from_bytes(data_buffer.read(4), "little")
+def readAttrHeader(byte_array) -> AttrHeader:
+	attr_type_id = int.from_bytes(byte_array[0:4], "little")
 	# reached end of entry
 	if attr_type_id == 0xffffffff:
 		sys.exit(2)
-	attr_len = int.from_bytes(data_buffer.read(4), "little")
-	non_resident_flag = int.from_bytes(data_buffer.read(1), "little")
-	name_len = int.from_bytes(data_buffer.read(1), "little")
-	name_offset = int.from_bytes(data_buffer.read(2), "little")
-	flags = int.from_bytes(data_buffer.read(2), "little")
-	attr_id = int.from_bytes(data_buffer.read(2), "little")
+	attr_len = int.from_bytes(byte_array[4:8], "little")
+	non_resident_flag = int.from_bytes(byte_array[8:9], "little")
+	name_len = int.from_bytes(byte_array[9:10], "little")
+	name_offset = int.from_bytes(byte_array[10:12], "little")
+	flags = int.from_bytes(byte_array[12:14], "little")
+	attr_id = int.from_bytes(byte_array[14:16], "little")
 	return AttrHeader(attr_type_id, attr_len, non_resident_flag, name_len, \
-		name_offset, flags, attr_id), 16
+		name_offset, flags, attr_id)
 
 def printAttrType(attr_type_id):
 	match attr_type_id:
@@ -199,13 +198,13 @@ def printAttrType(attr_type_id):
 def printAttrHeader(attr_header):
 	print("attribute type id: %d" %(attr_header.attr_type_id), end="")
 	printAttrType(attr_header.attr_type_id)
-	print("attribute length: %d" %(attr_header.attr_len))
+	prettyPrint("attribute length", attr_header.attr_len, "int")
 	if attr_header.non_resident_flag == 1:
-		print("non-resident flag set")
+		prettyPrint("non resident flag", "non-resident flag set", "string")
 	else:
-		print("non-resident flag not set")
-	print("name length: %d" %(attr_header.name_len))
-	print("name offset: %d" %(attr_header.name_offset))
+		prettyPrint("non resident flag", "non-resident flag not set", "string")
+	prettyPrint("name length", attr_header.name_len, "int")
+	prettyPrint("name offset", attr_header.name_offset, "int")
 	print("flags set:")
 	if attr_header.flags & 0x01: 
 		print("\t- compressed flag set")
@@ -213,65 +212,72 @@ def printAttrHeader(attr_header):
 		print("\t- encrypted flag set")
 	if attr_header.flags & 0x8000:
 		print("\t- sparse flag set")
-	print("attribute id: %d" %(attr_header.attr_id))
+	prettyPrint("attribute id", attr_header.attr_id, "int")
 
-def readResAttrHeader(data_buffer) -> ResAttrHeader:
-	content_size = int.from_bytes(data_buffer.read(4), "little")
-	content_offset = int.from_bytes(data_buffer.read(2), "little")
-	return ResAttrHeader(None, content_size, content_offset), 6
+def readResAttrHeader(byte_array) -> ResAttrHeader:
+	content_size = int.from_bytes(byte_array[0:4], "little")
+	content_offset = int.from_bytes(byte_array[4:6], "little")
+	return ResAttrHeader(None, content_size, content_offset)
 
 def printResAttrHeader(res_attr_header):
 	printAttrHeader(res_attr_header.attr_header)
-	print("content size: %d" %(res_attr_header.content_size))
-	print("content offset: %d" %(res_attr_header.content_offset))
+	prettyPrint("content size:", res_attr_header.content_size, "int")
+	prettyPrint("content offset:", res_attr_header.content_offset, "int")
 
-def readNonResAttrHeader(data_buffer) -> NonResAttrHeader:
-	runlist_start_VCN = int.from_bytes(data_buffer.read(8), "little")
-	runlist_end_VCN = int.from_bytes(data_buffer.read(8), "little")
-	runlist_offset = int.from_bytes(data_buffer.read(2), "little")
-	compression_unit_size = int.from_bytes(data_buffer.read(2), "little")
-	padding = int.from_bytes(data_buffer.read(4))
-	attr_content_alloc_size = int.from_bytes(data_buffer.read(8), "little")
-	attr_content_actual_size = int.from_bytes(data_buffer.read(8), "little")
-	attr_content_init_size = int.from_bytes(data_buffer.read(8), "little")
+def readNonResAttrHeader(byte_array) -> NonResAttrHeader:
+	runlist_start_VCN = int.from_bytes(byte_array[0:8], "little")
+	runlist_end_VCN = int.from_bytes(byte_array[8:16], "little")
+	runlist_offset = int.from_bytes(byte_array[16:18], "little")
+	compression_unit_size = int.from_bytes(byte_array[18:20], "little")
+	padding = byte_array[20:24]
+	attr_content_alloc_size = int.from_bytes(byte_array[24:32], "little")
+	attr_content_actual_size = int.from_bytes(byte_array[32:40], "little")
+	attr_content_init_size = int.from_bytes(byte_array[40:48], "little")
 	return NonResAttrHeader(None, runlist_start_VCN, runlist_end_VCN, \
 	runlist_offset, compression_unit_size, padding, attr_content_alloc_size, \
-	attr_content_actual_size, attr_content_init_size), 48
+	attr_content_actual_size, attr_content_init_size)
 
 def printNonResAttrHeader(nonres_attr_header):
 	printAttrHeader(nonres_attr_header.attr_header)
-	print("runlist starting VCN: %d" %(nonres_attr_header.runlist_start_VCN))
-	print("runlist end VCN: %d" %(nonres_attr_header.runlist_end_VCN))
-	print("runlist offset: %d" %(nonres_attr_header.runlist_offset))
-	print("compression unit size: %d" %(nonres_attr_header.compression_unit_size))
-	print("attribute content allocated size: %d" %(nonres_attr_header.attr_content_alloc_size))
-	print("attribute content actual size: %d" %(nonres_attr_header.attr_content_actual_size))
-	print("attribute content initialized size: %d" %(nonres_attr_header.attr_content_init_size))
+	prettyPrint("runlist starting VCN", nonres_attr_header.runlist_start_VCN, "int")
+	prettyPrint("runlist end VCN", nonres_attr_header.runlist_end_VCN, "int")
+	prettyPrint("runlist offset", nonres_attr_header.runlist_offset, "int")
+	prettyPrint("compression unit size", nonres_attr_header.compression_unit_size, \
+		"int")
+	prettyPrint("content allocated size", \
+		nonres_attr_header.attr_content_alloc_size, "int")
+	prettyPrint("content actual size", \
+		nonres_attr_header.attr_content_actual_size, "int")
+	prettyPrint("content initialized size", \
+		nonres_attr_header.attr_content_init_size, "int")
 
-def readRunlist(data_buffer):
-	read_bytes=0
+def readRunlist(byte_array):
+	current_offset=0
 	runlist=[]
-	length_byte = int.from_bytes(data_buffer.read(1))
-	read_bytes += 1
+	length_byte = int.from_bytes(byte_array[current_offset:current_offset+1])
+	current_offset += 1
 
 	while length_byte != 0:
 		run_offset_length = length_byte>>4
 		run_length_length = length_byte & 0xf
-		run_length = int.from_bytes(data_buffer.read(run_length_length), "little")
-		read_bytes += run_length_length
-		run_offset = int.from_bytes(data_buffer.read(run_offset_length), "little")
+		run_length = int.from_bytes(byte_array[current_offset: \
+			current_offset+run_length_length], "little")
+		current_offset += run_length_length
+		run_offset = int.from_bytes(byte_array[current_offset: \
+			current_offset+run_offset_length], "little")
+		current_offset += run_offset_length
 		# offset is negative
-		if not (run_offset & 0x80):
+		if run_offset & 0x8000:
 			run_offset -= 0x10000
-		read_bytes += run_offset_length
-		length_byte = int.from_bytes(data_buffer.read(1))
-		read_bytes += 1
+		length_byte = int.from_bytes(byte_array[current_offset:current_offset+1])
+		current_offset += 1
 		runlist.append(Runlist(run_length, run_offset))
 
-	return runlist, read_bytes
+	return runlist, current_offset
 
-def readAttr(data_buffer, current_offset):
-	total_read_bytes = 0
+def readAttr(byte_array):
+	# TODO: parse attribute name
+	current_offset = 0
 	read_bytes = 0
 	padding = b''
 	attr_header = None
@@ -280,67 +286,69 @@ def readAttr(data_buffer, current_offset):
 	attr_content = b''
 	attr_runlist = []
 	# read common attribute header
-	attr_header, read_bytes = readAttrHeader(data_buffer)
-	total_read_bytes += read_bytes
+	attr_header = readAttrHeader(byte_array[0:16])
+	current_offset += 16
 
 	# read rest of attribute header
 	if attr_header.non_resident_flag == 0:
-		res_attr_header, read_bytes = readResAttrHeader(data_buffer)
+		res_attr_header = readResAttrHeader(byte_array[16:22])
 		res_attr_header.attr_header = attr_header
+		current_offset += 6
 	elif attr_header.non_resident_flag == 1:
-		nonres_attr_header, read_bytes = readNonResAttrHeader(data_buffer)
+		nonres_attr_header = readNonResAttrHeader(byte_array[16:64])
 		nonres_attr_header.attr_header = attr_header
+		current_offset += 48
 	else:
-		print("Warning: corrupted non resident flag in attribute header", file=sys.stderr)
+		print("Warning: corrupted non resident flag in attribute header" \
+			, file=sys.stderr)
 		sys.exit(-1)
-	total_read_bytes += read_bytes
 	
 	# read attribute content
 	if res_attr_header:
 		# undefined bytes between header and content
-		if total_read_bytes < res_attr_header.content_offset:
+		if current_offset < res_attr_header.content_offset:
 			print("Warning: bytes before content detected", file=sys.stderr)
-			read_bytes = res_attr_header.content_offset - total_read_bytes
-			padding = data_buffer.read(read_bytes)
-			print(padding.hex(), file=sys.stderr)
-			total_read_bytes += read_bytes
-		elif total_read_bytes > res_attr_header.content_offset:
+			print("Extra bytes:\n", byte_array[current_offset: \
+				res_attr_header.content_offset], file=sys.stderr)
+			current_offset = res_attr_header.content_offset
+		elif current_offset > res_attr_header.content_offset:
 			print("Warning: corrupted content offset", file=sys.stderr)
 			print("Terminating...", file=sys.stderr)
 			sys.exit(-1)
 		# read contents
-		attr_content = data_buffer.read(res_attr_header.content_size)
-		total_read_bytes += res_attr_header.content_size
+		attr_content = byte_array[current_offset: \
+			current_offset + res_attr_header.content_size]
+		current_offset += res_attr_header.content_size
 	else:
 		# undefined bytes between header and content
-		if total_read_bytes < nonres_attr_header.runlist_offset:
+		if current_offset < nonres_attr_header.runlist_offset:
 			print("Warning: bytes before content detected", file=sys.stderr)
-			read_bytes = nonres_attr_header.runlist_offset - total_read_bytes
-			padding = data_buffer.read(read_bytes)
-			total_read_bytes += read_bytes
-			print(padding.hex(), file=sys.stderr)
-		elif total_read_bytes > nonres_attr_header.runlist_offset:
+			print("Extra bytes:\n", byte_array[current_offset: \
+				nonres_attr_header.runlist_offset], file=sys.stderr)
+			current_offset = nonres_attr_header.runlist_offset
+		elif current_offset > nonres_attr_header.runlist_offset:
 			print("Warning: corrupted runlist offset", file=sys.stderr)
 			print("Terminating...", file=sys.stderr)
 			sys.exit(-1)
 
 		# read runlist 
-		attr_runlist, read_bytes = readRunlist(data_buffer)
-		total_read_bytes += read_bytes
+		attr_runlist, read_bytes = readRunlist(byte_array[current_offset:])
+		current_offset += read_bytes
 			
-	return res_attr_header, nonres_attr_header, attr_content, attr_runlist, total_read_bytes
+	return res_attr_header, nonres_attr_header, attr_content, attr_runlist, \
+		current_offset
 
 def printResAttr(res_attr_header, attr_content):
-	print("Resident Attribute", "="*100)
+	print("Resident Attribute", "="*15)
 	printResAttrHeader(res_attr_header)
 
 	print("Content:")
 	# print content
 	print(attr_content)
-	print("="*100, "\n\n\n")
+	print("\n\n")
 
 def printNonResAttr(non_res_attr_header, attr_runlist):
-	print("Non-resident Attribute", "="*100)
+	print("Non-resident Attribute", "="*15)
 	printNonResAttrHeader(non_res_attr_header)
 	cumulated_offset = 0
 	for _ in range(len(attr_runlist)):
@@ -350,7 +358,7 @@ def printNonResAttr(non_res_attr_header, attr_runlist):
 	print("Content:")
 	# print content
 
-	print("="*100, "\n\n\n")
+	print("\n\n")
 	
 def main():
 	try:
@@ -371,15 +379,14 @@ def main():
 		else:
 			assert False, "unhandled option"
 
-	data_array=b''
+	byte_array=b''
 
 	if file_name != "":
 		with open(file_name, 'rb') as f:
-			data_array = f.read(1024)
+			byte_array = f.read(1024)
 	else:
-		data_array = sys.stdin.buffer.read(1024)
+		byte_array = sys.stdin.buffer.read(1024)
 
-	data_buffer = io.BytesIO(data_array)
 	current_offset = 0
 	read_bytes = 0
 	padding_after_fixup = b''
@@ -389,68 +396,80 @@ def main():
 	attr_list = []
 
 	# parse MFT entry header
-	entry_header, read_bytes = readEntryHeader(data_buffer)
-	current_offset += read_bytes
+	entry_header = readEntryHeader(byte_array[0:48])
+	current_offset += 48
 	printEntryHeader(entry_header)
 
 	# parse fixup value
-	fixup_data, read_bytes = readFixupData(data_buffer, entry_header, current_offset)
-	current_offset += read_bytes
+	if current_offset < entry_header.fixup_array_offset:
+		print("Warning: bytes before fixup value detected", file=sys.stderr)
+		print("Extra bytes:\n", byte_array[current_offset: \
+			entry_header.fixup_array_offset], file=sys.stderr)
+		current_offset = entry_header.fixup_array_offset
+	elif current_offset > entry_header.fixup_array_offset:
+		print("Warning: fixup array offset smaller than header size", file=sys.stderr)
+		print("Terminating...", file=sys.stderr)
+		sys.exit(-1)
+	fixup_data_length = 2+entry_header.fixup_entry_count*2
+	fixup_data = readFixupData(byte_array[current_offset: \
+		current_offset+fixup_data_length])
+	current_offset += fixup_data_length
 	printFixupData(fixup_data)
 
 	# replace fixup signature values with original values
-	corrected_data_array=bytearray(data_array)
-	if data_array[510:512] != fixup_data.fixup_value:
-		print("Warning: value at end of sector 1 does not match fixup signature", file=sys.stderr)
-		print("Signature value: %s\t\t\tValue at end of sector: %s" %(fixup_data.fixup_value.hex(), data_array[510:512].hex()), file=sys.stderr)
-	corrected_data_array[510:512] = fixup_data.original_value_array[0]
+	fixed_byte_array = bytearray(byte_array)
+	if byte_array[510:512] != fixup_data.fixup_value:
+		print("Warning: value at end of sector 1 does not match fixup signature", \
+			file=sys.stderr)
+		print("Signature value: 0x%s\tValue at end of sector 1: 0x%s" %( \
+			fixup_data.fixup_value.hex(), byte_array[510:512].hex()), file=sys.stderr)
+	fixed_byte_array[510:512] = fixup_data.original_value_array[0]
 
-	if data_array[1022:1024] != fixup_data.fixup_value:
-		print("Warning: value at end of sector 2 does not match fixup signature", file=sys.stderr)
-		print("Signature value: %s\t\t\tValue at end of sector: %s" %(fixup_data.fixup_value.hex(), data_array[1022:1024].hex()), file=sys.stderr)
-	corrected_data_array[1022:1024] = fixup_data.original_value_array[1]
+	if byte_array[1022:1024] != fixup_data.fixup_value:
+		print("Warning: value at end of sector 2 does not match fixup signature", \
+			file=sys.stderr)
+		print("Signature value: 0x%s\tValue at end of sector 2: 0x%s" %( \
+			fixup_data.fixup_value.hex(), byte_array[1022:1024].hex()), \
+			file=sys.stderr)
+	fixed_byte_array[1022:1024] = fixup_data.original_value_array[1]
+	byte_array = bytes(fixed_byte_array)
 
-	# read data array again
-	data_buffer = io.BytesIO(bytes(corrected_data_array))
-	data_buffer.seek(current_offset)
-	
 	if current_offset < entry_header.attr_offset:
 		print("Warning: bytes before first attribute detected", file=sys.stderr)
-		read_bytes = entry_header.attr_offset - current_offset
-		padding_after_fixup = data_buffer.read(read_bytes)
-		current_offset += read_bytes
-		print(padding_after_fixup.hex(), file=sys.stderr)
+		print("Extra bytes:\n", byte_array[current_offset: \
+			entry_header.attr_offset], file=sys.stderr)
+		current_offset = entry_header.attr_offset
 	elif current_offset > entry_header.attr_offset:
-		print("Warning: first attribute offset smaller than current offset", file=sys.stderr)
+		print("Warning: first attribute offset smaller than current offset", \
+			file=sys.stderr)
 		print("Terminating...", file=sys.stderr)
 		sys.exit(-1)
 
 	# parse attributes
 	while current_offset != entry_header.entry_used_size:
-		res_atr_header = None
+		res_attr_header = None
 		nonres_attr_header = None
 		attr_content = b''
 		attr_runlist = []
 		
-		res_attr_header, nonres_attr_header, attr_content, attr_runlist, read_bytes = readAttr(data_buffer, current_offset)
-		current_offset += read_bytes
+		res_attr_header, nonres_attr_header, attr_content, attr_runlist, read_bytes \
+			= readAttr(byte_array[current_offset:])
 		if res_attr_header:
 			current_attr_length = res_attr_header.attr_header.attr_len
 		else:
 			current_attr_length = nonres_attr_header.attr_header.attr_len
 
-		# too little bytes read
+		# too few bytes read
 		if read_bytes < current_attr_length:
 			print("Warning: bytes after attribute detected", file=sys.stderr)
-			read_bytes = current_attr_length - read_bytes
-			padding = data_buffer.read(read_bytes)
-			current_offset += read_bytes
-			print(padding.hex(), file=sys.stderr)
+			print("Extra bytes:\n", byte_array[current_offset+read_bytes: \
+				current_offset+current_attr_length], file=sys.stderr)
 		# too many bytes read
 		elif read_bytes > current_attr_length:
 			print("Warning: attribute length value corrupted", file=sys.stderr)
 			print("Terminating...", file=sys.stderr)
 			sys.exit(-1)
+		current_offset += current_attr_length
 		
 		# print and save attr
 		if res_attr_header: 
