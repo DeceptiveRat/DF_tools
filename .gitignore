@@ -16,3 +16,4 @@
 *.mov
 *.webp
 *.WEBP
+**/__pycache__
