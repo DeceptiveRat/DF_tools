@@ -10,7 +10,6 @@ def usage():
 	print("    -h: display this help screen")
 	print("    -f <file>: file to search. If this is not provided, stdin is used")
 	print("    -p <pattern>: [required] pattern to search for. Enter as hex; e.g. 3ccf10")
-	print("    -e: switch endianness. Default: False")
 	print("    -s <int>: skip bytes")
 	print("    -l <int>: max length to parse in bytes. Skipped bytes are included. Default: 100,000,000")
 
@@ -19,7 +18,6 @@ chunk_length=1000000
 max_search_length = 100000000
 search_pattern=""
 skip_length = 0
-switch_endianness=False
 
 try:
 	opts, args = getopt.getopt(sys.argv[1:], "hf:l:p:es:")
@@ -38,8 +36,6 @@ for option, argument in opts:
 		search_length=int(argument)
 	elif option == "-p":
 		search_pattern = argument
-	elif option == "-e":
-		switch_endianness = True
 	elif option == "-s":
 		skip_length = int(argument)
 	else:
@@ -66,12 +62,6 @@ else:
 
 remaining_bytes = remaining_bytes - read_length
 offset = skip_length
-
-if switch_endianness:
-	search_pattern = hex(int.from_bytes(bytes.fromhex(search_pattern)))
-	search_pattern=search_pattern[2:]
-if len(search_pattern)%2 != 0:
-	search_pattern = "0" + search_pattern
 
 while data_array != "":
 	pos = 0

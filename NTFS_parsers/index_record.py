@@ -108,7 +108,7 @@ def printIndexEntry(index_entry, deleted, is_directory):
 		print("Delted ", end="")
 	print("Index Entry", "="*15)
 	if is_directory:
-		pp.prettyPrint("MFT file reference", index_entry.MFT_file_reference, "hex")
+		pp.prettyPrint("MFT file reference", index_entry.MFT_file_reference, "hex", 16)
 		fra.printFileReferenceAddress(index_entry.MFT_file_reference)
 	else:
 		print("First padding:")
