@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 import sys
+import subprocess
 
 import pretty_print as pp
 import runlist as rl
@@ -267,7 +268,7 @@ def printResAttr(res_attr_header, attr_content):
 
 	print("Content:")
 	# print content
-	print(attr_content)
+	subprocess.run("xxd", input=attr_content)
 	print("\n\n")
 
 def printNonResAttr(non_res_attr_header, attr_runlist):
@@ -276,8 +277,8 @@ def printNonResAttr(non_res_attr_header, attr_runlist):
 	cumulated_offset = 0
 	for _ in range(len(attr_runlist)):
 		cumulated_offset += attr_runlist[_].run_offset
-		print("\tRunlist[%d]:\tRun Length: %d\t\t\tRun Offset: %d(%d from start \
-			of FS)" %(_, attr_runlist[_].run_length, attr_runlist[_].run_offset, \
+		print("\tRunlist[%d]:\tRun Length: %d\tRun Offset: %d(%d from start of FS)"\
+			%(_, attr_runlist[_].run_length, attr_runlist[_].run_offset, \
 			cumulated_offset))
 
 	print("Content:")

@@ -19,15 +19,16 @@ def usage():
 	print("\t-f <file>: file to parse. If this is not provided, stdin will be used")
 	print("\t-r <int>: index record size. Default 4096 bytes")
 	print("\t-i: ignore last entry in list flag. Useful for finding deleted entries")
-	print("\t-d: index record contains directory contents; i.e. directory flag \
-		set and attribute name $I30")
+	print("\t-d: index record contains directory contents; i.e. directory flag", \
+		"set and attribute name $I30")
 	print("\t-q: quiet mode. Only output extracted entry")
-	print("\t-e <int>,<int>,<int>: entries to extract")
-	print("\t-r: used with -e. Extract raw bytes to file raw.dat")
+	print("\t-e <int>,<int>,...: entries to extract")
+	print("\t-b: used with -e. Extract raw bytes to file raw.dat")
+	print("\t-R: parse $INDEX_ROOT")
 
 def main():
 	try:
-		opts, args = getopt.getopt(sys.argv[1:], "hf:r:ide:qr")
+		opts, args = getopt.getopt(sys.argv[1:], "hf:r:ide:qbR")
 	except getopt.GetoptError as err:
 		print(err)
 		usage()
@@ -41,6 +42,7 @@ def main():
 	extract_num_list = []
 	quiet_mode = False
 	raw_extract = False
+	is_INDEX_ROOT = False
 
 	for option, argument in opts:
 		if option == "-h":
@@ -57,10 +59,12 @@ def main():
 		elif option == "-e":
 			for _ in argument.split(","):
 				extract_num_list.append(int(_))
-		elif option == "-r":
+		elif option == "-b":
 			raw_extract = True
 		elif option == "-q":
 			quiet_mode = True
+		elif option == "-R":
+			is_INDEX_ROOT = True
 		else:
 			assert False, "unhandled option"
 
@@ -124,6 +128,7 @@ def main():
 		print("Terminating...", file=sys.stderr)
 		sys.exit(-1)
 
+	prev_offset = 0
 	while current_offset < INDEX_RECORD_SIZE - 16:
 		bytes_read = 0
 		index_entry, bytes_read = ir.readIndexEntry(data_bytes[current_offset:])

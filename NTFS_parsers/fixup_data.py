@@ -1,10 +1,11 @@
 from dataclasses import dataclass 
+import sys
 
 import pretty_print as pp
 
 @dataclass 
 class FixupData:
-	fixup_value: int
+	fixup_value: bytes
 	original_value_array: list[int]
 
 def readFixupData(data_bytes) -> FixupData:
@@ -31,11 +32,11 @@ def revertFixupData(data_bytes, fixup_data, data_length):
 	for offset in range(510, data_length, 512):
 		# doesn't match
 		if data_bytes[offset:offset+2] != fixup_data.fixup_value:
-			print("Warning: value at end of sector %d does not match \
-				fixup signature" %((offset/512)+1), file=sys.stderr)
+			print("Warning: value at end of sector %d does not match fixup signature" \
+				%((offset/512)+1), file=sys.stderr)
 			print("Signature value: 0x%s\tValue at end of sector %d: 0x%s" \
-				%((offset/512)+1), fixup_data.fixup_value.hex(), \
-				data_bytes[offset:offset+2].hex(), file=sys.stderr)
+				%(fixup_data.fixup_value.hex(), ((offset/512)+1), \
+				data_bytes[offset:offset+2].hex()), file=sys.stderr)
 
 		# fix value
 		fixed_data_bytes[offset:offset+2] = fixup_data.original_value_array[0]
