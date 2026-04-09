@@ -113,6 +113,7 @@ def printIndexEntry(index_entry, deleted, is_directory):
 		fra.printFileReferenceAddress(index_entry.MFT_file_reference)
 	else:
 		print("First padding:")
+		sys.stdout.flush()
 		subprocess.run("xxd", input=index_entry.padding)
 	pp.prettyPrint("Entry length", index_entry.entry_len, "int")
 	pp.prettyPrint("Content length", index_entry.content_len, "int")
@@ -123,11 +124,14 @@ def printIndexEntry(index_entry, deleted, is_directory):
 		print("\t- Last entry flag set")
 	if is_directory:
 		print("$FILE_NAME attribute:")
+		sys.stdout.flush()
 		subprocess.run("xxd", input=index_entry.file_name_attr)
 	else:
 		print("Content:")
+		sys.stdout.flush()
 		subprocess.run("xxd", input=index_entry.content)
 	pp.prettyPrint("Child node VCN", index_entry.child_VCN, "int")
 	print("Second padding:")
+	sys.stdout.flush()
 	subprocess.run("xxd", input=index_entry.padding2)
 	print("\n\n")
